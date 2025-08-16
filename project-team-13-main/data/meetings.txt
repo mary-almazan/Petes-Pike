@@ -1,0 +1,15 @@
+Mary and Angelina Meeting Data:
+
+Mon Nov 4 -> 5:00PM through 7:00PM
+Status: Worked on PetesPike model classes
+
+Wed Nov 6 -> 5:00PM through 7:00PM 
+Status: Started PetesPikeCLI
+
+
+Part Two
+Mon Nov 11 -> 5:00PM through 7:00PM
+Status: 
+
+Wed Nov 13 -> 5:00PM through 7:00PM 
+Status: 

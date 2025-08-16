@@ -1,0 +1,375 @@
+package petespike.model;
+
+import java.io.*;
+import java.util.*;
+
+
+public class PetesPikeOG {
+    //placeholders for the variables on the board
+    public static final char MOUNTAINTOP_SYMBOL = 'T';
+    public static final char EMPTY_SYMBOL = '-';
+    public static final char PETE_SYMBOL = 'P';
+    public static final char[] GOAT_SYMBOLS = {'1', '2', '3','4', '5', '6', '7', '8', '9'};
+
+    private char[][] board;
+    private int ROWS;
+    private int COLS;
+    private Position mountaintop;
+    private int moveCount;
+    private int GOAT_COUNT;
+
+
+    public PetesPikeOG(String filename) {
+        reset(filename);
+    }
+    public int getRows() {
+        return ROWS;
+    }
+    public int getCols() {
+        return COLS;
+    }
+    public int getGoatCount() {
+        return GOAT_COUNT;
+    }
+    public int getMoveCounter() { 
+        return moveCount;
+    }
+
+    //checks if position is on board
+    public boolean isValid(Position position){
+        boolean valid = true;
+        if (position.getRow() < 0
+            || position.getRow() >= ROWS
+            || position.getCol() < 0
+            || position.getCol() >= COLS){
+            valid = false;
+        }
+        return valid;
+    }
+
+    // return the symbol at position (row, col)
+    public char getSymbolAt(Position position) throws PetesPikeException{
+        if (!isValid(position)){
+            throw new PetesPikeException("The given position is an invalid location on the board.");
+        }
+        return board[position.getRow()][position.getCol()];
+    }
+
+    // returns the position of either pete or goat
+    public Position getPositionOf(char symbol) throws PetesPikeException{
+        //iterates thru the grid
+        for (int row = 0; row < ROWS; row++){
+            for (int col = 0; col < COLS; col++){
+                //creates position
+                Position aPosition = new Position(row, col); 
+                //checks if they match
+                if (symbol == getSymbolAt(aPosition)){
+                    return aPosition;
+                }
+            }
+        }
+        //not found then its null
+        return null;
+    }
+
+    // public List<Move> getPossibleMoves(char symbol) throws PetesPikeException {
+    //     // innitializing possible moves
+    //     List<Move> possibleMoves = new ArrayList<>();
+
+    //     if (getPositionOf(symbol) == null){
+    //         throw new PetesPikeException("Piece not on board");
+    //     }
+    //     //iterates through directions
+    //     for (Direction direction : Direction.values()) {
+    //         // get front position and resets for each iteration
+    //         Position frontPosition = getPositionOf(symbol);
+    //         if (direction == Direction.UP) {
+    //             // while the move is not out of bounds
+    //             while (frontPosition.getRow() > 0){
+    //                 frontPosition.setRow(frontPosition.getRow() - 1);
+    //                 // if the space in front is blocked
+    //                 if (getSymbolAt(frontPosition) != EMPTY_SYMBOL) {
+    //                     // set the position to the spot behind the occupied one
+    //                     frontPosition.setRow(frontPosition.getRow() + 1);
+    //                     possibleMoves.add(new Move(frontPosition, Direction.UP));
+    //                     break;
+    //                 }
+    //             }
+    //         }
+
+    //         if (direction == Direction.DOWN) {
+    //             // while the move is not out of bounds
+    //             while (frontPosition.getRow() < ROWS){
+    //                 frontPosition.setRow(frontPosition.getRow() + 1);
+    //                 // if the space in front is blocked
+    //                 if (getSymbolAt(frontPosition) != EMPTY_SYMBOL) {
+    //                     // set the position to the spot behind the occupied one
+    //                     frontPosition.setRow(frontPosition.getRow() - 1);
+    //                     possibleMoves.add(new Move(frontPosition, Direction.DOWN));
+    //                     break;
+    //                 }
+    //             }
+    //         }
+
+    //         if (direction == Direction.LEFT) {
+    //             // while the move is not out of bounds
+    //             while (frontPosition.getCol() > 0){
+    //                 frontPosition.setCol(frontPosition.getCol() - 1);
+    //                 // if the space in front is blocked
+    //                 if (getSymbolAt(frontPosition) != EMPTY_SYMBOL) {
+    //                     // set the position to the spot behind the occupied one
+    //                     frontPosition.setCol(frontPosition.getCol() + 1);
+    //                     possibleMoves.add(new Move(frontPosition, Direction.LEFT));
+    //                     break;
+    //                 }
+    //             }
+    //         }
+            
+    //         if (direction == Direction.RIGHT) {
+    //             // while the move is not out of bounds
+    //             while (frontPosition.getCol() < COLS){
+    //                 frontPosition.setCol(frontPosition.getCol() + 1);
+    //                 // if the space in front is blocked
+    //                 if (getSymbolAt(frontPosition) != EMPTY_SYMBOL) {
+    //                     // set the position to the spot behind the occupied one
+    //                     frontPosition.setCol(frontPosition.getCol() - 1);
+    //                     possibleMoves.add(new Move(frontPosition, Direction.RIGHT));
+    //                     break;
+    //                 }
+    //             }
+    //         }
+            
+    //     }
+    //     return possibleMoves;
+    // }
+
+    //remade gpm bc the old one was too long and i got annoyed
+    //this the merged version of both our work
+    public List<Move> getPossibleMoves(char symbol) throws PetesPikeException {
+        // innitializing possible moves
+        List<Move> possibleMoves = new ArrayList<>();
+
+        if (getPositionOf(symbol) == null){
+            throw new PetesPikeException("Piece not on board");
+        }
+        //iterates through directions
+        for (Direction direction : Direction.values()) {
+            // get front position
+            Position frontPosition = getPositionOf(symbol);
+            //while position is on board
+            while (isValid(frontPosition)) {
+                //saves current position
+                Position currentPosition = frontPosition;
+                // if the case direction, move one space that way
+                switch(direction) {
+                    case UP:
+                        frontPosition.setRow(frontPosition.getRow() - 1);
+                        break;
+                    case DOWN:
+                        frontPosition.setRow(frontPosition.getRow() + 1);
+                        break;
+                    case LEFT:
+                        frontPosition.setCol(frontPosition.getCol() - 1);
+                        break;
+                    case RIGHT:
+                        frontPosition.setCol(frontPosition.getCol() + 1);
+                        break;
+                }
+                //if space in front is blocked, then set current position to behind occupied spot
+                if (getSymbolAt(frontPosition) != EMPTY_SYMBOL) {
+                    //add the move to possible moves
+                    possibleMoves.add(new Move(currentPosition, direction));
+                    break;
+                }
+            }
+        }
+        return possibleMoves;
+    }
+
+    // remade GPM start
+    // public List<Move> getPossibleMoves(char symbol) throws PetesPikeException {
+    //     List<Move> possibleMoves = new ArrayList<>();
+    
+    //     if (getPositionOf(symbol) == null) {
+    //         throw new PetesPikeException("ERROR: Piece not on board");
+    //     }
+    
+    //     for (Direction direction : Direction.values()) {
+    //         Position currentPosition = new Position(
+    //             getPositionOf(symbol).getRow(), 
+    //             getPositionOf(symbol).getCol()
+    //         );
+    //         Position nextPosition = new Position(currentPosition.getRow(), currentPosition.getCol());
+    
+    //         //iterates till found
+    //         while (isValid(nextPosition)) {
+    //             switch(direction) {
+    //                 case UP:
+    //                     nextPosition.setRow(nextPosition.getRow() - 1);
+    //                     break;
+    //                 case DOWN:
+    //                     nextPosition.setRow(nextPosition.getRow() + 1);
+    //                     break;
+    //                 case LEFT:
+    //                     nextPosition.setCol(nextPosition.getCol() - 1);
+    //                     break;
+    //                 case RIGHT:
+    //                     nextPosition.setCol(nextPosition.getCol() + 1);
+    //                     break;
+    //             }
+    
+    //             //is pete still in the boards boumdaries
+    //             if (!isValid(nextPosition)) {
+    //                 break;
+    //             }
+    
+    //             try {
+    //                 //trying to find space
+    //                 if (getSymbolAt(nextPosition) != EMPTY_SYMBOL) {
+                        
+    //                     switch(direction) {
+    //                         case UP:
+    //                             nextPosition.setRow(nextPosition.getRow() + 1);
+    //                             break;
+    //                         case DOWN:
+    //                             nextPosition.setRow(nextPosition.getRow() - 1);
+    //                             break;
+    //                         case LEFT:
+    //                             nextPosition.setCol(nextPosition.getCol() + 1);
+    //                             break;
+    //                         case RIGHT:
+    //                             nextPosition.setCol(nextPosition.getCol() - 1);
+    //                             break;
+    //                     }
+    //                     possibleMoves.add(new Move(nextPosition, direction));
+    //                     break;  // Stop checking this direction after finding an occupied space
+    //                 }
+
+    //                 //exception! stops when invalid position
+    //             } catch (PetesPikeException e) {
+    //                 break; 
+    //             }
+    //         }
+    //     }
+    //     return possibleMoves;
+    // }
+
+    //end of remake
+
+    public Position getMountaintop() throws PetesPikeException {
+        this.mountaintop = getPositionOf(MOUNTAINTOP_SYMBOL);
+        return mountaintop;
+    }
+    // ahh
+// bc u said its basically the same were just gnna return it
+
+    // returns mountaintop position
+    // pretty much same as getPositionOf
+    // public Position getMountaintop() {
+        // for (int row = 0; row < ROWS; row++){
+            // for (int col = 0; col < COLS; col++){
+                //Position mPosition = new Position(row, col);
+                // if (getSymbolAt(mPosition) == MOUNTAINTOP_SYMBOL){
+                    //return mPosition;
+                //}
+            //}
+        // }
+        //return null;
+    //}
+
+        // makes the move and throws exceptions if invalid move
+    //public void makeMove(Move move) throws PetesPikeException {
+        //if (move.position.getRow() < 0 || move.position.getCol() < 0) {
+            //throw new PetesPikeException("The given position is invalid.");
+        //} else if (getSymbolAt(move.getPosition()) == EMPTY_SYMBOL) {
+            //throw new PetesPikeException("There is no piece at the specified position.");
+        //} else {
+                //pulls current position and then updates the new position
+            //Position currentPosition = getPositionOf(getSymbolAt(move.getPosition())); 
+            //board[currentPosition.getRow()][currentPosition.getCol()] = EMPTY_SYMBOL;
+            //board[move.getPosition().getRow()][move.getPosition().getCol()] = getSymbolAt(currentPosition);
+    
+            //moveCount++;
+        //}
+   // }
+
+    public void makeMove(Move move) throws PetesPikeException {
+        Position currentPosition = move.getPosition();
+        char moveSymbol = getSymbolAt(currentPosition);
+
+        // Check if there is a piece to move
+        if (getSymbolAt(currentPosition) == EMPTY_SYMBOL){
+            throw new PetesPikeException("There is no piece at the specified position");
+        }
+
+        // Position Invalid
+        List<Move> possibleMoves = getPossibleMoves(moveSymbol);
+        if (possibleMoves.isEmpty()) {
+            throw new PetesPikeException("Position Invalid: No possible moves can be made");
+        }
+    
+        boolean moveFound = false;
+        // poss moves check
+        for (Move possibleMove : possibleMoves) {
+            if (possibleMove.equals(move)) {
+                moveFound = true;
+                break;
+            }
+        }
+        //move not found
+        // no piece to stop the move so move invalid
+        if (!moveFound) {
+            throw new PetesPikeException("Invalid move made at current position");
+        }
+    
+        board[getPositionOf(moveSymbol).getRow()][getPositionOf(moveSymbol).getCol()] = EMPTY_SYMBOL;
+        board[currentPosition.getRow()][currentPosition.getCol()] = moveSymbol;
+    
+        moveCount++;
+    }
+
+    //what the fuck is my merge not working
+    //haha
+    
+    public void reset(String filename){
+        String[] boardConfig = filename.split("_");
+        ROWS = Integer.parseInt(boardConfig[2]);
+        COLS = Integer.parseInt(boardConfig[3]);
+        GOAT_COUNT = Integer.parseInt(boardConfig[4]);
+        board = new char[ROWS][COLS];
+        //use the txt to configure board
+        try(BufferedReader reader = new BufferedReader(new FileReader(filename))) {
+            //skips first line
+            reader.readLine();
+            for (int row = 0; row < ROWS; row++) {
+                String line = reader.readLine();
+                for (int col = 0; col < COLS; col++) {
+                    //convert each space on the line(which is string) into symbol(which is char)
+                    char symbol = line.charAt(col);
+                    board[row][col] = symbol;
+                    if (symbol == MOUNTAINTOP_SYMBOL) {
+                        mountaintop = new Position(row, col);
+                    }
+                }
+            }
+        } catch(FileNotFoundException fnfe) {
+            System.out.println("File not found: " + filename);
+        } catch(IOException ioe){
+            System.out.println(ioe);
+        }
+        moveCount = 0;
+    }
+}
+//         for (int i = 0; i < ROWS; i++) {
+//             for (int j = 0; j < COLS; j++) {
+//                 board[i][j] = boardConfig[i].charAt(j);
+//                 if (board[i][j] == MOUNTAINTOP_SYMBOL) {
+//                     mountaintop = new Position(i, j);
+//                     board[i][j] = EMPTY_SYMBOL; 
+//                 }
+//             }
+//         }
+//         moveCount = 0;
+//     }
+
+// }

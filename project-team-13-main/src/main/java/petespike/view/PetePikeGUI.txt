@@ -1,0 +1,411 @@
+package petespike.view;
+
+
+import java.util.List;
+
+import javafx.application.Application;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.Separator;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundImage;
+import javafx.scene.layout.BackgroundPosition;
+import javafx.scene.layout.BackgroundRepeat;
+import javafx.scene.layout.BackgroundSize;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
+import javafx.stage.Stage;
+import petespike.model.Direction;
+import petespike.model.Move;
+import petespike.model.PetesPike;
+import petespike.model.PetesPikeException;
+import petespike.model.Position;
+
+public class PetesPikeGUI extends Application {
+    //empty squares
+    private static final Image BLANK_IMAGE = new Image("file:data/images/blanksquare.png");
+
+    private PetesPike game;
+    private String filename = "data/petes_pike_5_5_2_0.txt";
+    private Button[][] boardButtons;
+    private Label statusLabel;
+    private Label moveCountLabel;
+    private GridPane boardGrid;
+    private Button selectedButton;
+    private Position selectedPosition;
+    private VBox hintBox;
+    private Position hintPosition;
+    private Direction hintDirection;
+    private boolean gameWon = false;
+
+    @Override
+    public void start(Stage primaryStage) {
+        game = new PetesPike(filename);
+        
+        BorderPane root = new BorderPane();
+        root.setPadding(new Insets(10));
+        
+        VBox statusArea = createStatusArea();
+        root.setTop(statusArea);
+        
+        boardGrid = createGameBoard();
+        root.setCenter(boardGrid);
+      
+        VBox controlPanel = createControlPanel();
+        root.setRight(controlPanel);
+        
+        Scene scene = new Scene(root);
+        primaryStage.setTitle("Pete's Pike");
+        primaryStage.setScene(scene);
+        primaryStage.show();
+        
+        updateStatus("New game started!");
+    }
+    
+    private VBox createStatusArea() {
+        VBox statusArea = new VBox(10);
+        statusArea.setPadding(new Insets(0));
+        
+        HBox puzzleArea = new HBox(10);
+        //make dropdown menu for files so no need to type :D
+        ComboBox<String> dropdownMenu = new ComboBox<>();
+        dropdownMenu.getItems().addAll("data/petes_pike_4_8_5_no_solution.txt",
+                                    "data/petes_pike_5_5_2_0.txt",
+                                    "data/petes_pike_5_5_4_0.txt",
+                                    "data/petes_pike_5_5_4_1.txt",
+                                    "data/petes_pike_5_5_5_0.txt",
+                                    "data/petes_pike_5_7_4_0.txt",
+                                    "data/petes_pike_9_9_9_0.txt");
+        dropdownMenu.setOnAction(e -> {
+            //set filename to selected option
+            filename = dropdownMenu.getValue();
+            loadNewGame();
+        });
+        dropdownMenu.setPromptText("Select Map");
+        //make label next to dropdown
+        Label puzzleLabel = new Label("Puzzle: ");
+        puzzleLabel.getChildren().addAll(puzzleLabel, dropdownMenu);
+        statusLabel = new Label("Welcome to Pete's Pike!");
+        moveCountLabel = new Label("Moves: 0");
+        
+        statusArea.getChildren().addAll(dropdownMenu, statusLabel, moveCountLabel);
+        return statusArea;
+    }
+    
+    private GridPane createGameBoard() {
+        GridPane grid = new GridPane();
+        //position of spaces and how much gap between
+        grid.setAlignment(Pos.CENTER);
+        grid.setHgap(5);
+        grid.setVgap(5);
+
+        Image BACKGROUND_IMAGE = new Image("file:data/images/bg.png");
+
+        BackgroundSize BG_SIZE = new BackgroundSize(BackgroundSize.AUTO, BackgroundSize.AUTO, false, false, true, true);
+        grid.setBackground(new Background(new BackgroundImage(BACKGROUND_IMAGE, BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT, BackgroundPosition.CENTER, BG_SIZE)));
+        
+        boardButtons = new Button[game.getRows()][game.getCols()];
+        
+        for (int row = 0; row < game.getRows(); row++) {
+            for (int col = 0; col < game.getCols(); col++) {
+                Button button = createBoardButton(row, col);
+                boardButtons[row][col] = button;
+                grid.add(button, col, row);
+            }
+        }
+        StackPane boardPane = new StackPane(grid);
+        boardPane.setPrefSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        updateBoard();
+        return grid;
+    }
+    
+    private Button createBoardButton(int row, int col) {
+        Button button = new Button();
+        button.setPrefSize(60, 60);
+        button.setStyle("-fx-font-size: 18px; -fx-background-color: #F0F8FF; -fx-opacity: 0.7");
+        
+        button.setOnAction(e -> handleBoardClick(row, col));
+        
+        return button;
+    }
+    private Button createDirectionButton(String imageURL) {
+        //take the image and resize
+        ImageView imageView = new ImageView(new Image(imageURL));
+        imageView.setFitWidth(40);
+        imageView.setFitHeight(40);
+        //make the button and resize
+        Button button = new Button("", imageView);
+        button.setPrefSize(50, 50);
+        return button;
+    }
+    
+    private VBox createControlPanel() {
+        VBox panel = new VBox(10);
+        panel.setPadding(new Insets(10));
+        panel.setAlignment(Pos.TOP_CENTER);
+
+        GridPane directionGrid = new GridPane();
+        directionGrid.setAlignment(Pos.CENTER);
+        
+        Button upButton = createDirectionButton("file:data/images/upbutton.png");
+        Button downButton = createDirectionButton("file:data/images/downbutton.png");
+        Button leftButton = createDirectionButton("file:data/images/leftbutton.png");
+        Button rightButton = createDirectionButton("file:data/images/rightbutton.png");
+
+        upButton.setOnAction(e -> {
+            try {
+                tryMove(Direction.UP);
+            } catch (PetesPikeException e1) {
+                e1.printStackTrace();
+            }
+        });
+        downButton.setOnAction(e -> {
+            try {
+                tryMove(Direction.DOWN);
+            } catch (PetesPikeException e1) {
+                e1.printStackTrace();
+            }
+        });
+        leftButton.setOnAction(e -> {
+            try {
+                tryMove(Direction.LEFT);
+            } catch (PetesPikeException e1) {
+                e1.printStackTrace();
+            }
+        });
+        rightButton.setOnAction(e -> {
+            try {
+                tryMove(Direction.RIGHT);
+            } catch (PetesPikeException e1) {
+                e1.printStackTrace();
+            }
+        });
+        
+        directionGrid.add(upButton, 1, 0);
+        directionGrid.add(leftButton, 0, 1);
+        directionGrid.add(rightButton, 2, 1);
+        directionGrid.add(downButton, 1, 2);
+      
+        Button hintButton = new Button("Get Hint");
+        hintButton.setOnAction(e -> showHint());
+        
+        Button resetButton = new Button("Reset Game");
+        resetButton.setOnAction(e -> resetGame());
+        
+        Button newGameButton = new Button("New Game");
+        newGameButton.setOnAction(e -> loadNewGame());
+        
+        hintBox = new VBox(5);
+        hintBox.setAlignment(Pos.CENTER);
+        
+        panel.getChildren().addAll(
+            directionGrid, 
+            new Separator(),
+            hintButton,
+            resetButton,
+            newGameButton,
+            new Separator(),
+            hintBox
+        );
+        
+        return panel;
+    }
+    
+    private void handleBoardClick(int row, int col) {
+        if (gameWon) {
+            updateStatus("Game is already won! Start a new game or reset.");
+            return;
+        }
+        
+        clearHint();
+
+        if (selectedButton != null) {
+            selectedButton.setStyle("-fx-font-size: 18px;");
+        }
+        
+        Position pos = new Position(row, col);
+        char symbol = game.getSymbolAt(pos);
+        
+        if (symbol == PetesPike.PETE_SYMBOL || game.isGoat(symbol)) {
+            selectedButton = boardButtons[row][col];
+            selectedButton.setStyle("-fx-font-size: 18px; -fx-background-color: yellow;");
+            selectedPosition = pos;
+            updateStatus("Selected piece at " + row + ", " + col);
+        } else {
+            selectedButton.setDisable(true);
+        }
+    }
+    
+    private void tryMove(Direction direction) throws PetesPikeException {
+        if (gameWon) {
+            updateStatus("Game is already won! Start a new game or reset.");
+            return;
+        }
+        
+        try {
+            game.makeMove(new Move(selectedPosition, direction));
+        } catch(PetesPikeException PPE){
+            updateStatus("There is no piece in that direction to stop you.");
+            return;
+        }
+        
+        clearHint();
+        
+        Move move = new Move(selectedPosition, direction);
+        
+        Position oldPos = new Position(selectedPosition.getRow(), selectedPosition.getCol());
+        char symbol = game.getSymbolAt(oldPos);
+        
+        game.makeMove(move);
+        
+        Position newPos = game.getPositionOf(symbol);
+       
+        boardButtons[oldPos.getRow()][oldPos.getCol()].setText("");
+        updateButtonSymbol(newPos);
+        
+        moveCountLabel.setText("Moves: " + game.getMoveCount());
+         
+        selectedButton.setStyle("-fx-font-size: 18px;");
+        selectedButton = null;
+        selectedPosition = null;
+        
+
+        checkWinCondition();
+    }
+    
+    private void showHint() {
+        if (gameWon) {
+            updateStatus("Game won. Start a new game or exit.");
+            return;
+        }
+        
+        List<Move> possibleMoves = game.getPossibleMoves();
+        if (!possibleMoves.isEmpty()) {
+            Move hint = possibleMoves.get(0);
+            hintPosition = hint.getPosition();
+            hintDirection = hint.getDirection();
+            
+            Button hintButton = boardButtons[hintPosition.getRow()][hintPosition.getCol()];
+            hintButton.setStyle("-fx-background-color: lightgreen;");
+          
+            Text hintText = new Text("Move from (" + 
+                hintPosition.getRow() + ", " + hintPosition.getCol() + 
+                ") " + hintDirection);
+            hintBox.getChildren().clear();
+            hintBox.getChildren().add(hintText);
+            
+            updateStatus("Hint shown in green");
+        } else {
+            updateStatus("No moves available for Pete!");
+        }
+    }
+    
+    private void clearHint() {
+        if (hintPosition != null) {
+            boardButtons[hintPosition.getRow()][hintPosition.getCol()]
+                .setStyle("-fx-font-size: 18px;");
+            hintPosition = null;
+            hintDirection = null;
+            hintBox.getChildren().clear();
+        }
+    }
+    
+
+    private void resetGame() {
+        game.reset(filename);
+        updateBoard();
+        moveCountLabel.setText("Moves: 0");
+        clearHint();
+        gameWon = false;
+        updateStatus("Game reset!");
+    }
+    
+    private void loadNewGame() {
+        // FileChooser fileChooser = new FileChooser();
+        // fileChooser.setTitle("Open Puzzle File");
+        // fileChooser.getExtensionFilters().add(
+        //     new FileChooser.ExtensionFilter("Text Files", "*.txt")
+        // );
+        
+        // File file = fileChooser.showOpenDialog(null);
+            game = new PetesPike(filename);
+            updateBoard();
+            moveCountLabel.setText("Moves: 0");
+            clearHint();
+            gameWon = false;
+            updateStatus("New game start!");
+    }
+    
+    private void updateBoard() {
+        for (int row = 0; row < game.getRows(); row++) {
+            for (int col = 0; col < game.getCols(); col++) {
+                updateButtonSymbol(new Position(row, col));
+            }
+        }
+    }
+    
+    private void updateButtonSymbol(Position pos){
+        char symbol = game.getSymbolAt(pos);
+        Button button = boardButtons[pos.getRow()][pos.getCol()];
+        ImageView imageView;
+        
+        switch (game.getSymbolAt(pos)) {
+            case PetesPike.PETE_SYMBOL:
+                imageView = new ImageView(new Image("file:data/images/mountain.png"));
+                break;
+            case PetesPike.MOUNTAINTOP_SYMBOL:
+                imageView = new ImageView(new Image("file:data/images/mountain.png"));
+                break;
+            case PetesPike.EMPTY_SYMBOL:
+                imageView = new ImageView(new Image("file:data/images/blanksquare.png"));
+                break;
+            default:
+                if (game.isGoat(symbol)) {
+                    imageView = new ImageView(new Image("file:data/images/goat" + symbol + ".png"));
+                } else {
+                    updateStatus("Attempted to add an Unknown Piece"); 
+                    imageView = null;
+                } break;
+        }
+
+        //if it valid piece
+        if (imageView == null) {
+            System.out.println("why");
+        } else {
+            //resize image
+            imageView.setFitWidth(50);
+            imageView.setFitHeight(50);
+            //set button image
+            button.setGraphic(imageView);
+        }
+    }
+    
+    private void checkWinCondition() {
+        Position petePos = game.getPositionOf(PetesPike.PETE_SYMBOL);
+        Position mountaintop = game.getMountaintop();
+                
+        if (petePos.equals(mountaintop)) {
+            gameWon = true;
+            updateStatus("Congrats! You made " + game.getMoveCount() + " moves!");
+        }
+        }
+    
+    private void updateStatus(String message) {
+        statusLabel.setText(message);
+    }
+    
+    public static void main(String[] args) {
+        launch(args);
+    
+    }
+}

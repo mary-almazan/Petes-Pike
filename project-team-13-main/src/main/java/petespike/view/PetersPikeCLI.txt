@@ -1,0 +1,156 @@
+package petespike.view;
+
+import java.util.List;
+import java.util.Scanner;
+
+import petespike.model.Direction;
+import petespike.model.Move;
+import petespike.model.PetesPike;
+import petespike.model.Position;
+import petespike.model.PetesPikeSolver;
+
+public class PetersPikeCLI {
+    private PetesPike game;
+    private int moves;
+
+    public static void main(String[] args) {
+        PetersPikeCLI cli = new PetersPikeCLI();
+        cli.start();
+    }
+
+    private void start() {
+        System.out.println("Enter a filename:");
+        Scanner scanner = new Scanner(System.in);
+        String filename = scanner.nextLine();
+
+        game = new PetesPike(filename);
+        moves = 0;
+        showBoard();
+        handleCommands(scanner);
+    }
+
+    private void handleCommands(Scanner scanner) {
+        boolean running = true;
+        while (running) {
+            System.out.println("Enter a command (help, board, reset, new, move, hint, solve, or quit):");
+            String command = scanner.nextLine();
+
+            if (command.equals("help")) {
+                showHelp();
+            } else if (command.equals("board")) {
+                showBoard();
+            } else if (command.equals("reset")) {
+                resetGame();
+            } else if (command.startsWith("new ")) {
+                String[] parts = command.split(" ");
+                if (parts.length != 2) {
+                    System.out.println("Invalid command format. Use: new <puzzle_filename>");
+                } else {
+                    String newFilename = parts[1];
+                    game = new PetesPike(newFilename);
+                    moves = 0;
+                    showBoard();
+                }
+            } else if (command.startsWith("move ")) {
+                String[] parts = command.split(" ");
+                if (parts.length != 4) {
+                    System.out.println("Invalid command format. Use: move <row> <col> <direction>");
+                } else {
+                    int row = Integer.parseInt(parts[1]);
+                    int col = Integer.parseInt(parts[2]);
+                    String directionString = parts[3];
+                    Direction direction = getDirection(directionString);
+                    if (direction == null) {
+                        System.out.println("Invalid direction. Use: u, d, l, or r");
+                    } else {
+                        Move move = new Move(new Position(row, col), direction);
+                        game.makeMove(move);
+                        moves++;
+                        showBoard();
+                    }
+                }
+            } else if (command.equals("hint")) {
+                try {
+                    PetesPikeSolver solver = PetesPikeSolver.solve(game);
+                    if (solver != null && !solver.getSolutionMoves().isEmpty()) {
+                        Move hint = solver.getSolutionMoves().get(0);
+                        System.out.println("Hint:  Move .. " + hint.getPosition() + " " + hint.getDirection());
+                    } else {
+                        System.out.println("No solution found.");
+                    }
+                } catch (Exception except) {
+                    System.out.println("Hint could not be found " + except.getMessage());
+                }
+            } else if (command.equals("solve")) {
+                try {
+                    PetesPikeSolver solver = PetesPikeSolver.solve(game);
+                    if (solver != null) {
+                        List<Move> solutionMoves = solver.getSolutionMoves();
+                        if (solutionMoves.isEmpty()) {
+                            System.out.println("No solution found.");
+                        } else {
+                            System.out.println("Solving the game...");
+                            for (Move move : solutionMoves) {
+                                game.makeMove(move);
+                                moves++;
+                                showBoard();
+                                try {
+                                    // stop between moves
+                                    Thread.sleep(600); 
+                                } catch (InterruptedException e) {
+                                    Thread.currentThread().interrupt();
+                                }
+                            }
+                            System.out.println("The game was solved in " + moves + " moves!");
+                        }
+                    } else {
+                        System.out.println("No solution found. . .");
+                    }
+                } catch (Exception except) {
+                    System.out.println("Error solving the game: " + except.getMessage());
+                }
+            } else if (command.equals("quit")) {
+                running = false;
+            } else {
+                System.out.println("Invalid command. Try again.");
+            }
+        }
+    }
+
+    private void showHelp() {
+        System.out.println("Commands:");
+        System.out.println("  help - displays a list of commands");
+        System.out.println("  board - displays the current board");
+        System.out.println("  reset - resets the current puzzle");
+        System.out.println("  new <puzzle_filename> - starts a new puzzle");
+        System.out.println("  move <row> <col> <direction> - moves a piece");
+        System.out.println("  hint - shows a move to win the game");
+        System.out.println("  solve - automatically solves the game");
+        System.out.println("  quit - quits the game");
+    }
+
+    private void resetGame() {
+        game.reset(game.getClass().getResource("/petes_pike_5_7_4_0.txt").getPath());
+        moves = 0;
+        showBoard();
+    }
+
+    private void showBoard() {
+        System.out.println("Moves: " + moves);
+        System.out.println(game);
+    }
+
+    private Direction getDirection(String directionString) {
+        if (directionString.equalsIgnoreCase("u")) {
+            return Direction.UP;
+        } else if (directionString.equalsIgnoreCase("d")) {
+            return Direction.DOWN;
+        } else if (directionString.equalsIgnoreCase("l")) {
+            return Direction.LEFT;
+        } else if (directionString.equalsIgnoreCase("r")) {
+            return Direction.RIGHT;
+        } else {
+            return null;
+        }
+    }
+}
